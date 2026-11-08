@@ -124,6 +124,22 @@ class Integration(unittest.TestCase):
         self.assertTrue(evidence['body'].get('ok'), evidence)
         self.assertFalse(evidence['callbackReferrerSent'], evidence)
 
+    def test_11_transcription_errors_name_the_url_and_reason(self):
+        _, tokens, _ = self.issue()
+        for url, downloaded, failure, expected in (
+                ('https://course.example/login', (b'<!doctype html><title>Sign in</title>', 'text/html'),
+                 None, 'Unsupported audio file'),
+                ('https://course.example/missing.mp3', None,
+                 ValueError('Download returned HTTP 404'), 'HTTP 404')):
+            with self.subTest(url=url), patch('tools.download', return_value=downloaded, side_effect=failure):
+                status, body = self.rpc(tokens['access_token'], 'tools/call',
+                    {'name': 'transcribe', 'arguments': {'url': url}})
+                self.assertEqual(status, 200)
+                self.assertTrue(body['result']['isError'])
+                message = body['result']['content'][0]['text']
+                self.assertIn(url, message)
+                self.assertIn(expected, message)
+
     def issue(self, repeat_resource=False):
         client, params = self.authorization()
         query = urllib.parse.urlencode(params)

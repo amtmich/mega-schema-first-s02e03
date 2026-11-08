@@ -169,7 +169,13 @@ class Tools:
             file_id = self.store.save_file(filename, mime, body)
             result = {'url': self.origin + '/files/' + file_id}
         else:
-            parsed = urllib.parse.urlsplit(args['url'])
+            return self.transcribe(args['url'])
+        validate(result, BY_NAME[name]['outputSchema'], 'result')
+        return result
+
+    def transcribe(self, url):
+        try:
+            parsed = urllib.parse.urlsplit(url)
             own = urllib.parse.urlsplit(self.origin)
             if (parsed.scheme, parsed.netloc) == (own.scheme, own.netloc) and parsed.path.startswith('/files/'):
                 file = self.store.file(parsed.path.removeprefix('/files/'))
@@ -177,9 +183,12 @@ class Tools:
                     raise ValueError('Uploaded file not found')
                 body, mime = file['body'], file['mime']
             else:
-                body, mime = download(args['url'], maximum=MAX_AUDIO)
+                body, mime = download(url, maximum=MAX_AUDIO)
             if len(body) > MAX_AUDIO:
                 raise ValueError('Audio exceeds the 14 MB transcription limit')
             result = self.transcriber(body, audio_type(body, mime), self.config)
-        validate(result, BY_NAME[name]['outputSchema'], 'result')
-        return result
+            validate(result, TRANSCRIPT, 'result')
+            return result
+        except (ValueError, OSError) as error:
+            reason = str(error) if isinstance(error, ValueError) else 'Audio could not be downloaded or read'
+            raise ValueError('Cannot transcribe ' + url + ': ' + reason) from None
