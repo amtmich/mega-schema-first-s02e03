@@ -16,7 +16,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from auth import Auth, OAuthError
+from auth import Auth, OAuthError, parameters
 from storage import Store
 from tools import BY_NAME, DEFINITIONS, Tools, validate
 
@@ -232,9 +232,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.headers.get('Content-Type', '').split(';')[0] != 'application/x-www-form-urlencoded':
             raise ValueError('Expected form URL encoding')
         values = urllib.parse.parse_qs(raw.decode(), keep_blank_values=True, max_num_fields=30)
-        if any(len(v) != 1 for v in values.values()):
-            raise ValueError('Duplicate form parameters are not supported')
-        return {key: value[0] for key, value in values.items()}
+        return parameters(values)
 
     def authenticated(self):
         auth = self.headers.get('Authorization', '')
@@ -259,9 +257,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send(200, self.app.auth.metadata())
             elif path == '/authorize':
                 values = urllib.parse.parse_qs(parsed.query, keep_blank_values=True, max_num_fields=30)
-                if any(len(v) != 1 for v in values.values()):
-                    raise OAuthError('invalid_request', 'Duplicate authorization parameters')
-                pending, browser, record = self.app.auth.begin({k: v[0] for k, v in values.items()})
+                pending, browser, record = self.app.auth.begin(parameters(values))
                 markup = (ROOT / 'consent.html').read_text()
                 for key, value in {'PENDING': pending, 'CLIENT': record['client_name'],
                                    'CLIENT_ID': record['client_id'], 'REDIRECT': record['redirect_uri']}.items():

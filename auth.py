@@ -20,6 +20,24 @@ class OAuthError(ValueError):
         super().__init__(description)
 
 
+def parameters(values):
+    """Normalize parsed OAuth fields without silently choosing security values.
+
+    RFC 8707 permits repeated resource parameters. This single-resource server
+    accepts repetitions of the same audience; it never broadens token audiences.
+    Other OAuth parameters must occur exactly once.
+    """
+    result = {}
+    for name, items in values.items():
+        if len(items) != 1:
+            if name != 'resource':
+                raise OAuthError('invalid_request', 'Duplicate OAuth parameter: ' + name)
+            if not items or len(set(items)) != 1:
+                raise OAuthError('invalid_target', 'Only one distinct resource is supported')
+        result[name] = items[0]
+    return result
+
+
 def challenge(verifier):
     return base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b'=').decode()
 

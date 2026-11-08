@@ -81,9 +81,12 @@ class Integration(unittest.TestCase):
                   'code_challenge_method': 'S256'}
         return client, params
 
-    def issue(self):
+    def issue(self, repeat_resource=False):
         client, params = self.authorization()
-        status, headers, body = self.request('GET', '/authorize?' + urllib.parse.urlencode(params))
+        query = urllib.parse.urlencode(params)
+        if repeat_resource:
+            query += '&' + urllib.parse.urlencode({'resource': params['resource']})
+        status, headers, body = self.request('GET', '/authorize?' + query)
         self.assertEqual(status, 200)
         import re
         pending = re.search(b'name="pending" value="([^"]+)"', body).group(1).decode()
@@ -98,9 +101,38 @@ class Integration(unittest.TestCase):
         token_params = {'grant_type': 'authorization_code', 'client_id': client['client_id'], 'code': code,
                         'code_verifier': VERIFIER, 'resource': self.origin + '/mcp',
                         'redirect_uri': client['redirect_uris'][0]}
-        status, _, body = self.form('/token', token_params)
+        body_params = list(token_params.items())
+        if repeat_resource:
+            body_params.append(('resource', token_params['resource']))
+        status, _, body = self.form('/token', body_params)
         self.assertEqual(status, 200, body)
         return client, json.loads(body), token_params
+
+    def test_08_codex_repeated_identical_resource_roundtrip(self):
+        _, tokens, _ = self.issue(repeat_resource=True)
+        status, body = self.rpc(tokens['access_token'], 'tools/list')
+        self.assertEqual(status, 200)
+        self.assertEqual(len(body['result']['tools']), 4)
+
+    def test_09_conflicting_resources_and_duplicate_security_fields(self):
+        _, params = self.authorization()
+        base = list(params.items())
+        for field, value, expected in (
+                ('resource', 'https://evil.example/mcp', 'invalid_target'),
+                ('state', params['state'], 'invalid_request'),
+                ('client_id', params['client_id'], 'invalid_request'),
+                ('redirect_uri', 'https://evil.example/callback', 'invalid_request'),
+                ('code_challenge', params['code_challenge'], 'invalid_request')):
+            with self.subTest(field=field):
+                status, _, body = self.request('GET', '/authorize?' + urllib.parse.urlencode(base + [(field, value)]))
+                self.assertEqual(status, 400)
+                self.assertEqual(json.loads(body)['error'], expected)
+        for field, values, expected in (
+                ('resource', [params['resource'], 'https://evil.example/mcp'], 'invalid_target'),
+                ('code_verifier', [VERIFIER, 'b' * 64], 'invalid_request')):
+            status, _, body = self.form('/token', [(field, value) for value in values])
+            self.assertEqual(status, 400)
+            self.assertEqual(json.loads(body)['error'], expected)
 
     def rpc(self, token, method, params=None, version=CURRENT, extra_headers=None):
         params = dict(params or {})
