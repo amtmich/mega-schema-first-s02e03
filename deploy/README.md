@@ -6,7 +6,8 @@ systemd service are installed and enabled. Public HTTPS, metadata, unauthorized
 rejection, operator tool calls with real audio, and persistence across an app
 restart passed. The harness is connected with native Codex OAuth, all four native
 MCP calls work, and the course accepted its initial checks, upload, and note.
-The course's later follow-up and final acceptance are pending.
+The course's later follow-up passed, the final claim was accepted on 2026-11-08,
+and the debrief is saved. Both services intentionally remain running.
 
 These are reviewable deployment files, not an installer. Do not run privileged
 commands or deploy until the owner approves the exact target and changes.

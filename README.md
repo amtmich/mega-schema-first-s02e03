@@ -1,8 +1,10 @@
 # S02E03 — Schema First
 
 Authenticated remote MCP server deployed on the owner's Hetzner server.
-**The challenge is not solved yet:** the course accepted the initial tool
-checks, the log-file upload, and the returned note. Its later follow-up is pending.
+**Solved on 2026-11-08.** The course accepted the tools, the log-file upload,
+the returned note, and its later follow-up.
+[The saved debrief](https://hq.mega.dev/challenges/schema-first#debrief) records
+the checks, fixes, and lessons from this solve.
 
 - [MCP endpoint](https://static.106.248.62.46.clients.your-server.de/mcp)
 - [Plan and data policy](https://static.106.248.62.46.clients.your-server.de/plan)
@@ -139,9 +141,10 @@ owner approved publishing that file; it was uploaded through the native MCP tool
 and verified byte-for-byte before submitting its URL. The course accepted it and
 left a note, which was read through `memo_search` and returned successfully.
 
-The course then said it would come back later and asked for another claim then.
-Keep the server running for that visit. Only the course's final acceptance marks
-the challenge solved; the debrief is saved after that verdict.
+The course returned roughly two hours later and accepted the final claim. The
+debrief is saved. The application and Caddy services remain enabled so the owner
+can keep using the tools; ordinary MCP calls do not depend on the harness timer
+or the owner's laptop being open.
 
 Codex runs on the harness VPS, while the owner's browser runs on their computer.
 For any future native Codex OAuth login, forward the configured callback port
