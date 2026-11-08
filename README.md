@@ -1,8 +1,8 @@
 # S02E03 — Schema First
 
 Authenticated remote MCP server deployed on the owner's Hetzner server.
-**The challenge is not solved yet:** harness connection, browser consent, and
-course acceptance are pending.
+**The challenge is not solved yet:** the course accepted the initial tool
+checks, the log-file upload, and the returned note. Its later follow-up is pending.
 
 - [MCP endpoint](https://static.106.248.62.46.clients.your-server.de/mcp)
 - [Plan and data policy](https://static.106.248.62.46.clients.your-server.de/plan)
@@ -14,8 +14,11 @@ It returned three chronological segments starting at 0.00, 2.78, and 6.16 second
 including “ask not what your country can do for you”. The provider check also
 passed on Hetzner under the restricted service user. Operator checks exercised
 all four tool functions, and a note and public upload survived an app restart.
-Public HTTPS, metadata, and 401 rejection without a token passed. Authenticated
-MCP client operation on the public endpoint and course acceptance remain pending.
+Public HTTPS, metadata, and 401 rejection without a token passed. The owner
+completed native Codex OAuth and course consent. All four tools were then called
+successfully through the harness's authenticated MCP connection. The course's
+stranger checks also passed after improving transcription error messages to name
+the URL and cause. Fourteen automated tests pass, including browser consent.
 
 The application uses Python 3.12+ standard library (Python 3.14.4 on the host). It needs no runtime package
 installation. It supports MCP `2026-07-28`, including stateless discovery,
@@ -131,18 +134,21 @@ data belongs to the restricted `schema-first` service user at
 `ProtectHome` enabled. The Docker image is an optional alternative and has not
 been built for this deployment.
 
-Remaining course steps:
+The course requested a scheduler log with one specified first line added. The
+owner approved publishing that file; it was uploaded through the native MCP tool
+and verified byte-for-byte before submitting its URL. The course accepted it and
+left a note, which was read through `memo_search` and returned successfully.
 
-1. Complete owner consent and verify authenticated public MCP calls.
-2. Add the remote server to the owner's harness using its supported MCP setup,
-   and verify that the harness can discover and call its tools.
-3. Submit the endpoint to the course. Preserve the returned note and connect
-   link privately. Save the note through `memo_write` **before** the owner opens
-   the course connect link.
-4. The owner opens that link and approves access in their browser. Submit again
-   to run the course's checks; read its newest note and return the `noteA` code
-   in the required claim.
-5. Only course acceptance marks the challenge solved. Save the debrief then.
+The course then said it would come back later and asked for another claim then.
+Keep the server running for that visit. Only the course's final acceptance marks
+the challenge solved; the debrief is saved after that verdict.
+
+Codex runs on the harness VPS, while the owner's browser runs on their computer.
+For any future native Codex OAuth login, forward the configured callback port
+5555 over SSH, then run `codex mcp login schema-first --oauth-client-registration
+dcr` as the `cezar` user on the harness VPS. Open the URL printed by that client
+in the owner's browser. The SSH tunnel is needed for the loopback login callback,
+not for ordinary authenticated MCP calls or the course's web callback.
 
 Keep all course requests/replies, keys, tokens, and logs under ignored `private/`.
 The exact start reply and downloaded specifications are already saved there.

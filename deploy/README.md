@@ -4,7 +4,9 @@ The owner approved this deployment on 2026-11-08. The service is live at
 `https://static.106.248.62.46.clients.your-server.de/mcp`. Caddy and the restricted
 systemd service are installed and enabled. Public HTTPS, metadata, unauthorized
 rejection, operator tool calls with real audio, and persistence across an app
-restart passed. Local harness connection and course acceptance are pending.
+restart passed. The harness is connected with native Codex OAuth, all four native
+MCP calls work, and the course accepted its initial checks, upload, and note.
+The course's later follow-up and final acceptance are pending.
 
 These are reviewable deployment files, not an installer. Do not run privileged
 commands or deploy until the owner approves the exact target and changes.
