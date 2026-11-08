@@ -1,17 +1,23 @@
 # S02E03 — Schema First
 
-Local implementation of an authenticated remote MCP server. **The challenge is
-not solved yet:** public deployment, harness connection, and course acceptance
-are pending. The owner approved publishing this repository and Gemini use, and
-requested Hetzner hosting; the exact Hetzner target is not selected yet.
+Authenticated remote MCP server deployed on the owner's Hetzner server.
+**The challenge is not solved yet:** harness connection, browser consent, and
+course acceptance are pending.
+
+- [MCP endpoint](https://static.106.248.62.46.clients.your-server.de/mcp)
+- [Plan and data policy](https://static.106.248.62.46.clients.your-server.de/plan)
+- [Health](https://static.106.248.62.46.clients.your-server.de/health)
 
 Real Gemini transcription passed on 2026-11-08 using the public 11-second
 [`whisper.cpp` JFK sample](https://github.com/ggml-org/whisper.cpp/blob/master/samples/jfk.wav).
 It returned three chronological segments starting at 0.00, 2.78, and 6.16 seconds,
-including “ask not what your country can do for you”. This verifies the provider
-adapter locally; remote operation and course acceptance remain unverified.
+including “ask not what your country can do for you”. The provider check also
+passed on Hetzner under the restricted service user. Operator checks exercised
+all four tool functions, and a note and public upload survived an app restart.
+Public HTTPS, metadata, and 401 rejection without a token passed. Authenticated
+MCP client operation on the public endpoint and course acceptance remain pending.
 
-The application uses Python 3.12's standard library. It needs no runtime package
+The application uses Python 3.12+ standard library (Python 3.14.4 on the host). It needs no runtime package
 installation. It supports MCP `2026-07-28`, including stateless discovery,
 per-request metadata, mirrored-header checks, `resultType`, and cache hints.
 The previous revision, `2025-11-25`, uses the legacy initialization flow.
@@ -96,11 +102,13 @@ separate real-provider check described above verifies that integration.
 When `private/spec/schema.json` is present, tests also validate current-protocol
 responses against the official MCP schema downloaded from its source repository.
 
-## Deployment plan (Hetzner target pending)
+## Hetzner deployment
 
 See [the Hetzner deployment plan](deploy/README.md), with a restricted systemd
-service and an HTTPS proxy example. These files are prepared for review and have
-not been installed on a host.
+service and an HTTPS proxy example. The service is installed and enabled on the
+owner's Ubuntu 26.04 server, with Caddy 2.6.2 from Ubuntu's package repository.
+The application listens only on loopback; Caddy publishes ports 80/443 and
+manages a trusted Let's Encrypt certificate for the hostname above.
 
 Deploy as a single Python service behind a host-provided HTTPS proxy, with a
 persistent writable data directory. Set `BIND_HOST=0.0.0.0`, `PORT` as required by
@@ -109,17 +117,16 @@ mount. Configure a new owner password and the approved transcription provider
 key through the host's secrets interface. The checked-in Dockerfile is optional;
 a native Python runtime can simply start `python3 server.py --host 0.0.0.0`.
 
-Render's free service has an ephemeral filesystem, so it cannot preserve this
-SQLite database across restarts. A paid service with a persistent disk is one
-option; an existing host with HTTPS and persistent storage is another. The
-Docker image, if used, runs as UID 10001; the mounted directory must be writable
-by that user. This project does not create a service, publish code, configure
-keys, or change harness configuration by itself.
+On the current host, source is root-owned at `/opt/schema-first`, persistent
+data belongs to the restricted `schema-first` service user at
+`/var/lib/schema-first`, and credentials reside in root-only
+`/etc/schema-first.env`. The service has `NoNewPrivileges`, `ProtectSystem`, and
+`ProtectHome` enabled. The Docker image is an optional alternative and has not
+been built for this deployment.
 
-After approval:
+Remaining course steps:
 
-1. Deploy and verify HTTPS metadata, owner consent, persistence, and all four
-   tools with a real audio sample.
+1. Complete owner consent and verify authenticated public MCP calls.
 2. Add the remote server to the owner's harness using its supported MCP setup,
    and verify that the harness can discover and call its tools.
 3. Submit the endpoint to the course. Preserve the returned note and connect
@@ -138,4 +145,4 @@ The exact start reply and downloaded specifications are already saved there.
 - [MCP specification](https://modelcontextprotocol.io/specification/2026-07-28)
 - [Gemini audio](https://ai.google.dev/gemini-api/docs/audio)
 - [GenerateContent contract](https://ai.google.dev/api/generate-content)
-- [Render persistent disks](https://render.com/docs/disks)
+- [Caddy automatic HTTPS](https://caddyserver.com/docs/automatic-https)
