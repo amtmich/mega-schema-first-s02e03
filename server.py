@@ -27,6 +27,7 @@ VERSIONS = [CURRENT, LEGACY]
 PREFIX = 'io.modelcontextprotocol/'
 INFO = {'name': 'schema-first', 'version': '1.0.0', 'title': 'Schema First tools'}
 MAX_BODY = 28_000_000
+CSP = "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
 
 
 class RPCError(ValueError):
@@ -184,6 +185,7 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def send(self, status, body=None, content_type='application/json', headers=None):
+        headers = dict(headers or {})
         if isinstance(body, (dict, list)):
             body = json_bytes(body)
         elif isinstance(body, str):
@@ -194,11 +196,13 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Length', str(len(body)))
         self.send_header('Cache-Control', 'no-store')
         self.send_header('X-Content-Type-Options', 'nosniff')
-        self.send_header('Referrer-Policy', 'no-referrer')
-        self.send_header('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+        # no-referrer turns a browser form POST's Origin into "null". Preserve
+        # same-origin consent posts while still hiding cross-origin referrers.
+        self.send_header('Referrer-Policy', 'same-origin')
+        self.send_header('Content-Security-Policy', headers.pop('Content-Security-Policy', CSP))
         if self.app.origin.startswith('https:'):
             self.send_header('Strict-Transport-Security', 'max-age=31536000')
-        for key, value in (headers or {}).items():
+        for key, value in headers.items():
             self.send_header(key, value)
         self.end_headers()
         if self.command != 'HEAD':
@@ -264,7 +268,18 @@ class Handler(BaseHTTPRequestHandler):
                     markup = markup.replace('{{' + key + '}}', html.escape(value, quote=True))
                 cookie = 'consent=' + browser + '; HttpOnly; SameSite=Lax; Path=/authorize; Max-Age=600'
                 if self.app.origin.startswith('https:'): cookie += '; Secure'
-                self.send(200, markup, 'text/html; charset=utf-8', {'Set-Cookie': cookie})
+                # Browsers also check form-action on the post-consent redirect.
+                # Permit only this validated client's callback origin. Quote any
+                # special characters so metadata can never inject CSP directives.
+                target = urllib.parse.urlsplit(record['redirect_uri'])
+                hostname = target.hostname.encode('idna').decode('ascii')
+                authority = '[' + hostname + ']' if ':' in hostname else hostname
+                if target.port:
+                    authority += ':' + str(target.port)
+                callback_origin = target.scheme + '://' + urllib.parse.quote(authority, safe='[]:.-')
+                consent_policy = CSP.replace("form-action 'self'", "form-action 'self' " + callback_origin)
+                self.send(200, markup, 'text/html; charset=utf-8', {
+                    'Set-Cookie': cookie, 'Content-Security-Policy': consent_policy})
             elif path.startswith('/files/'):
                 file_id = path.removeprefix('/files/')
                 file = self.app.store.file(file_id) if re.fullmatch(r'[A-Za-z0-9_-]{43}', file_id) else None

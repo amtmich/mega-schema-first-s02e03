@@ -102,6 +102,13 @@ separate real-provider check described above verifies that integration.
 When `private/spec/schema.json` is present, tests also validate current-protocol
 responses against the official MCP schema downloaded from its source repository.
 
+The browser consent regression uses an already-installed Chromium or an already
+cached `cypress/included:9.7.0` Docker image; it never downloads a browser or an
+image. Without either available, that one test is skipped. It verifies native
+form submission, the browser's Origin header, the cross-origin OAuth callback,
+and the absence of a cross-origin referrer. Browser automation uses test-only
+credentials on a temporary loopback server; it never approves real clients.
+
 ## Hetzner deployment
 
 See [the Hetzner deployment plan](deploy/README.md), with a restricted systemd

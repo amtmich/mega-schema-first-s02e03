@@ -6,6 +6,8 @@ import io
 import json
 from pathlib import Path
 import socket
+import shutil
+import subprocess
 import tempfile
 import threading
 import unittest
@@ -65,21 +67,62 @@ class Integration(unittest.TestCase):
         return self.request('POST', path, urllib.parse.urlencode(params),
                             {'Content-Type': 'application/x-www-form-urlencoded', **(headers or {})})
 
-    def register(self):
+    def register(self, redirect_uri=None):
         status, _, body = self.request('POST', '/register', json.dumps({
-            'client_name': 'Test Client', 'redirect_uris': ['http://localhost:9999/callback'],
+            'client_name': 'Test Client', 'redirect_uris': [redirect_uri or 'http://localhost:9999/callback'],
             'token_endpoint_auth_method': 'none', 'grant_types': ['authorization_code', 'refresh_token'],
             'application_type': 'native'}), {'Content-Type': 'application/json'})
         self.assertEqual(status, 201)
         return json.loads(body)
 
-    def authorization(self):
-        client = self.register()
+    def authorization(self, redirect_uri=None):
+        client = self.register(redirect_uri)
         params = {'client_id': client['client_id'], 'redirect_uri': client['redirect_uris'][0],
                   'response_type': 'code', 'scope': 'tools', 'state': 'test-state',
                   'resource': self.origin + '/mcp', 'code_challenge': challenge(VERIFIER),
                   'code_challenge_method': 'S256'}
         return client, params
+
+    def test_10_browser_consent_preserves_origin(self):
+        candidates = list((Path.home() / '.cache/ms-playwright').glob(
+            'chromium_headless_shell-*/*/chrome-headless-shell'))
+        command, container = None, None
+        if candidates and shutil.which('node'):
+            probe = subprocess.run([str(candidates[-1]), '--version'], capture_output=True, timeout=5)
+            if probe.returncode == 0:
+                chromium = str(candidates[-1])
+                command = ['node', 'tests/browser-consent.mjs']
+        # An already-cached browser image is an alternative; never pull/install one.
+        if command is None and shutil.which('docker'):
+            image = 'cypress/included:9.7.0'
+            probe = subprocess.run(['docker', 'image', 'inspect', image], capture_output=True, timeout=5)
+            if probe.returncode == 0:
+                chromium = 'google-chrome'
+                container = 'schema-first-browser-test-' + str(self.server.server_port)
+                helper = Path(__file__).parent / 'tests/browser-consent.mjs'
+                command = ['docker', 'run', '--rm', '--pull=never', '-i', '--network', 'host',
+                           '--name', container, '--entrypoint', 'node', '--workdir', '/tmp',
+                           '--volume', str(helper.resolve()) + ':/test/browser-consent.mjs:ro',
+                           image, '/test/browser-consent.mjs']
+        if command is None:
+            self.skipTest('Requires a usable installed Chromium or the already-cached browser image')
+        # A real OAuth callback is on another origin. localhost and 127.0.0.1
+        # reach this fixture server while still being distinct browser origins.
+        _, params = self.authorization(self.origin.replace('127.0.0.1', 'localhost') + '/health')
+        fixture = {'chromium': chromium, 'password': PASSWORD,
+                   'url': self.origin + '/authorize?' + urllib.parse.urlencode(params)}
+        (Path(__file__).parent / 'private').mkdir(exist_ok=True)
+        try:
+            result = subprocess.run(command, input=json.dumps(fixture),
+                                    text=True, capture_output=True, timeout=30, cwd=Path(__file__).parent)
+        finally:
+            if container:
+                subprocess.run(['docker', 'rm', '-f', container], capture_output=True, timeout=5)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        evidence = json.loads(result.stdout)
+        self.assertEqual(evidence['postedOrigin'], self.origin, evidence)
+        self.assertTrue(evidence['body'].get('ok'), evidence)
+        self.assertFalse(evidence['callbackReferrerSent'], evidence)
 
     def issue(self, repeat_resource=False):
         client, params = self.authorization()
@@ -278,8 +321,9 @@ class Integration(unittest.TestCase):
         self.assertTrue(body['result']['isError'])
         status, body = self.rpc(token, 'tools/call', {'name': 'transcribe', 'arguments': {'url': 'http://127.0.0.1/audio.wav'}})
         self.assertTrue(body['result']['isError'])
-        status, _, _ = self.request('POST', '/mcp', b'{}', {'Origin': 'https://evil.example', 'Authorization': 'Bearer ' + token})
-        self.assertEqual(status, 403)
+        for origin in ('https://evil.example', 'null'):
+            status, _, _ = self.request('POST', '/mcp', b'{}', {'Origin': origin, 'Authorization': 'Bearer ' + token})
+            self.assertEqual(status, 403)
 
     def test_07_legacy_compatibility(self):
         _, tokens, _ = self.issue()
