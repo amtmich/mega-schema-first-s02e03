@@ -1,0 +1,4 @@
+# Replace this hostname with the approved domain pointed at the Hetzner server.
+mcp.example.com {
+    reverse_proxy 127.0.0.1:8765
+}

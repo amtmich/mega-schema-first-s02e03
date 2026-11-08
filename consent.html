@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Authorize Schema First</title>
+<style>body{font:18px/1.6 system-ui,sans-serif;max-width:640px;margin:50px auto;padding:0 24px;background:#f6f4ee;color:#172c29}h1{line-height:1.1}section{padding:20px;background:white;border:1px solid #ccd7d1;border-radius:12px}code{overflow-wrap:anywhere}input{box-sizing:border-box;width:100%;padding:12px;font:inherit}button{font:inherit;padding:10px 20px;margin:20px 12px 0 0;cursor:pointer}small{display:block}a{color:#1a6657}</style>
+<h1>Let this client use your tools?</h1>
+<section><strong>{{CLIENT}}</strong><small>Client ID: <code>{{CLIENT_ID}}</code></small>
+<p>This client will read and write notes, upload public files, and request audio transcription in your shared workspace. Transcription sends audio to Gemini and may incur charges.</p>
+<p>After approval, your browser returns to <code>{{REDIRECT}}</code>. Only approve a client you recognize, including its return address.</p>
+<form method="post" action="/authorize">
+<input type="hidden" name="pending" value="{{PENDING}}">
+<label for="password">Owner password</label><input id="password" name="password" type="password" required autocomplete="current-password" minlength="16">
+<button name="decision" value="allow">Approve</button><button name="decision" value="deny">Deny</button>
+</form></section><p><a href="/plan">Read the server plan and data policy</a></p></html>

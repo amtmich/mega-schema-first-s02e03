@@ -1,0 +1,27 @@
+[Unit]
+Description=Schema First remote MCP server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=schema-first
+Group=schema-first
+WorkingDirectory=/opt/schema-first
+EnvironmentFile=/etc/schema-first.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/schema-first/server.py --host 127.0.0.1 --port 8765
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=150
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/schema-first
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
